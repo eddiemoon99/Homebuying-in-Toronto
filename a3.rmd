@@ -1,0 +1,149 @@
+---
+title: "MLR for Homes in GTA"
+author: "Eddie Moon, Id 1004161916"
+date: "December 4, 2020"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+In this assignment we will explore and analyze first-time home buying in our neighbourhoods, a current major issue.
+Especially during the COVID-19 crisis, prices for detached houses have been at all-time high. For this assignment the data was obtained from the Toronto Real Estate Board (TREB), provided in the assignment handout.
+
+There are many variables in our data: ID, sale, list, bedroom, bathroom, parking, maxsqfoot, taxes, lotwidth, lotlength, and location.
+The goal of this assignment will be to utilize our variables and data to develop a complex linear model in which home buyers can use to predict the sale price of single-family detahced homes in the two neighbourhoods in the GTA.
+
+
+## I. Data Wrangling
+First we will load our data in and randomly select a sample of 150 cases.
+``` {r echo=FALSE}
+#load in our needed libraries
+library(dplyr)
+library(readr)
+library(tidyverse)
+
+#read in our data csv into a vector
+data1916<-read.csv("real203.csv", fileEncoding="UTF-8-BOM")
+
+#set our seed as student number
+set.seed(1004161916)
+
+#randomly select 150 rows out of the total
+randomdata1916 <- sample_n(data1916, 150)
+
+
+```
+Then we will create a new variable named "lotsize" that will multiply lotwidth by lotlength and replace them in the data.
+```
+Now we can clean the data by removing at most eleven cases and one predictor. For the predictor variable we will choose to remove the maxsqfoot variable. This is because it seems that approximately half or maybe more of the cases have missing values (NA) for the maxsqfoot variable so it will not be a very nice predictor to work with to build a linear model. Therefore we can choose to remove this one.
+
+
+After removing this predictor we can see a couple of cases still with missing values mostly in the parking variable column and one in lotsize so we will go ahead and remove those.
+
+
+Now we have removed 8 cases with "NA" values, we are allowed to remove three more, so we will remove the cases where there is an extreme outlier. There were many cases where the taxes variable had an unabsurdly low number, so we will remove three of those.
+Now we have our dataset we can use for the rest of the assignment.
+
+
+
+## II. Exploratory Data Analysis
+ 
+Our categorical variables are: ID, location
+
+Our discrete variables are: sale, list, bedroom, bathroom, parking, taxes
+
+Our continuous variables are: lotsize, lotwidth, lotlength, maxsqfoot
+
+Now we will create a scatterplot matrix and produce the pairwise correlations for all pairs of quantitative variables in our data.
+
+``` {r echo=FALSE}
+#scatterploxmatrix
+pairs(sale~list+bedroom+bathroom+parking+taxes+lotsize,data=cleandata1916,cex.labels=0.85)
+
+#pairwise correlation
+numericxy=cbind(cleandata1916$sale,cleandata1916$list,cleandata1916$bedroom,cleandata1916$bathroom,cleandata1916$parking,cleandata1916$taxes,cleandata1916$lotsize)
+round(cor(numericxy), 4)
+```
+
+We can clearly see that the variables list and sale have the highest correlation coefficient of 9.872. 
+The ranking for predictor variables of sale price from highest coefficient to lowest is:
+
+1. list
+2. taxes
+3. bathroom
+4. lotsize
+5. bedroom
+6. parking
+
+Based on our scatterplot matrix, the single predictor violating the assumption of constant variance the most seems to be the lotsize variable.
+
+``` {r echo=FALSE}
+
+#checking constant variance
+
+cvmod1916<- lm(sale~lotsize, data=cleandata1916)
+
+plot(cvmod1916, 3)
+```
+
+We can check with a plot and see that this is true.
+
+## III. Methods and Model
+
+Now we will fit an additive linear regression model.
+
+``` {r echo=FALSE}
+
+#fitting lm
+fullmodel1916 <- lm(sale~list+bedroom+bathroom+parking+taxes+lotsize, data=cleandata1916)
+summary(fullmodel1916)
+```
+
+Now we will do stepwise regression with AIC.
+
+``` {r echo=FALSE}
+#backward AIC
+step(fullmodel1916, direction="backward")
+```
+
+The final model here is sale as the dependent variable and list + parking + taxes as the explanatory predictors. 
+So, lm(formula=sale~list+parking+taxes).
+The results are somewhat consistent with those in the previous fullmodel, in that they have similar coefficients.
+
+Now we will do BIC instead of AIC.
+
+``` {r echo=FALSE}
+#BIC
+step(fullmodel1916, direction="backward", k=log(140))
+```
+
+Here we can see that the final model is same as the AIC part, and the results are consistent with that.
+
+## IV. Discussions and Limitations
+
+We will now show the 4 diagnostic plots for the final model from part III.
+
+``` {r echo=FALSE}
+
+#finalmodel fitting
+finalmodel1916 <-lm(sale~list+parking+taxes, data=cleandata1916)
+
+#2v2plot
+
+par(mfrow=c(2,2))
+plot(finalmodel1916)
+
+```
+
+From our first plot we can see a few large outliers, but the red line is fairly horizontal so we can assume linearity.
+
+From our second plot the normal qq plot, we can see that most of the points fall approximately along the reference line so we can assume normailty.
+
+From our third flow of scale-location, we can see that there is a horizontal line with approximately equally spread points so we can asume homoscedasticity and assume constant variance
+
+Looking at our fourth and last plot, we can see that there are three points of interest 52, 44, and 117. Point 52 exceeds 3 standard deviations with a value of 4, so that is not good, meaning it is a high leverage point. However it is within the dashed lines of Cook's distance so it is not an influential point.
+
+
+The next steps we can take towrads finding a valid 'final' model could be Cross Validation, or even going back and doing better variable selection with likelihood.
